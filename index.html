@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>🔒 多功能加密解密工具</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    
+    <style>
+        /* --- 全局設定與字體優化 --- */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+            /* 柔和的淺藍色背景 */
+            background-color: #f0f4f8; 
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* --- 主要容器樣式 --- */
+        .container { 
+            max-width: 700px; /* 略微加大容器寬度 */
+            margin: 30px auto; 
+            background-color: #ffffff; 
+            padding: 35px; 
+            border-radius: 15px; 
+            /* 更有層次感的陰影 */
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); 
+        }
+        
+        /* --- 標題樣式 --- */
+        h1 { 
+            text-align: center; 
+            color: #1a237e; /* 深藍色 */
+            margin-bottom: 30px; 
+            font-size: 2.2em;
+            letter-spacing: 1px;
+            border-bottom: 3px solid #e0e7ff;
+            padding-bottom: 10px;
+        }
+
+        h3 { 
+            /* 標題下方的分隔線和顏色 */
+            padding-bottom: 8px; 
+            margin-top: 30px; 
+            margin-bottom: 15px;
+            color: #3949ab; 
+            font-weight: 600;
+        }
+
+        /* --- 表單元素樣式 --- */
+        label, select, textarea, button, input { 
+            display: block; 
+            margin-bottom: 12px; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
+
+        label {
+            font-weight: 500;
+            color: #444;
+            margin-bottom: 5px;
+        }
+
+        textarea { 
+            height: 120px; 
+            padding: 12px; 
+            border: 1px solid #c9d2df; 
+            border-radius: 8px; 
+            resize: vertical; 
+            background-color: #f8f9fa;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        input[type="text"], input[type="number"], select { 
+            padding: 10px; 
+            border: 1px solid #c9d2df; 
+            border-radius: 8px; 
+            background-color: #ffffff;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* 輸入框聚焦效果 */
+        textarea:focus, input:focus, select:focus {
+            border-color: #007bff; /* 經典藍 */
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+            outline: none;
+        }
+
+        /* 輸出結果只讀，使用等寬字體並區隔背景 */
+        #outputText {
+            background-color: #fff8e1; /* 柔和的黃色背景 */
+            border-color: #ffc107; 
+            font-family: monospace; 
+            color: #333;
+            height: 150px; /* 輸出框略微增高 */
+        }
+        
+        /* --- 參數區塊樣式 (Key, Shift) --- */
+        #keyField, #caesarShift {
+            padding: 15px;
+            border-left: 5px solid #ffc107; /* 黃色邊框強調參數輸入 */
+            background-color: #fffde7;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        /* --- 按鈕樣式 --- */
+        .button-group { 
+            display: flex; 
+            gap: 15px; 
+            margin-top: 25px; 
+            margin-bottom: 10px;
+        }
+
+        /* 將原本兩個按鈕的結構改為一個 button-group */
+        button {
+            padding: 14px 20px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            transition: background-color 0.3s, transform 0.1s, box-shadow 0.3s; 
+            flex-grow: 1; 
+            font-size: 1.1em;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .encrypt-btn { 
+            background-color: #007bff; /* 藍色，代表操作 */
+            color: white; 
+        }
+        .decrypt-btn { 
+            background-color: #28a745; /* 綠色，代表成功/解鎖 */
+            color: white; 
+        }
+        
+        .encrypt-btn:hover { background-color: #0056b3; }
+        .decrypt-btn:hover { background-color: #1e7e34; }
+
+        /* 按鈕按下時的視覺回饋 */
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 圖示微調 */
+        button i {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-key"></i> 多功能加密解密網頁</h1>
+
+        <h3><i class="fas fa-cogs"></i> 1. 選擇方式</h3>
+        <label for="methodSelect">選擇加密/解密方法:</label>
+        <select id="methodSelect">
+            <option value="base64">1. Base64 編碼/解碼 (Encode/Decode)</option>
+            <option value="caesar">2. 凱撒密碼 (Caesar Cipher)</option>
+            <option value="substitution">3. 單表置換密碼 (Substitution Cipher) - **目前僅支援英文大寫**</option>
+            <option value="aes">4. AES 對稱加密/解密 (需密鑰)</option>
+            <option value="xor">5. 異或運算加密/解密 (XOR Cipher)</option>
+        </select>
+        
+        <h3><i class="fas fa-keyboard"></i> 2. 輸入內容與參數</h3>
+        <label for="inputText">輸入要處理的文字 (明文或密文):</label>
+        <textarea id="inputText" placeholder="請在此輸入文字..."></textarea>
+        
+        <div id="keyField" style="display:none;">
+            <label for="secretKey"><i class="fas fa-lock"></i> 輸入密鑰 (Key):</label>
+            <input type="text" id="secretKey" value="mysecretkey" placeholder="輸入 AES 或 XOR 的密鑰">
+        </div>
+        
+        <div id="caesarShift" style="display:none;">
+            <label for="shiftValue"><i class="fas fa-arrows-alt-h"></i> 凱撒密碼位移量 (Shift 1-25):</label>
+            <input type="number" id="shiftValue" value="3" min="1" max="25">
+        </div>
+
+        <h3><i class="fas fa-bolt"></i> 3. 執行操作</h3>
+        <div class="button-group">
+            <button class="encrypt-btn" onclick="executeOperation('encrypt')"><i class="fas fa-plus"></i> 執行 **加密** / **編碼**</button>
+            <button class="decrypt-btn" onclick="executeOperation('decrypt')"><i class="fas fa-minus"></i> 執行 **解密** / **解碼**</button>
+        </div>
+        
+        <h3><i class="fas fa-clipboard-list"></i> 4. 結果輸出</h3>
+        <label for="outputText">結果:</label>
+        <textarea id="outputText" readonly placeholder="結果將顯示在這裡..."></textarea>
+    </div>
+
+    <script>
+        // 綁定元素
+        const methodSelect = document.getElementById('methodSelect');
+        const inputText = document.getElementById('inputText');
+        const outputText = document.getElementById('outputText');
+        const keyField = document.getElementById('keyField');
+        const secretKeyInput = document.getElementById('secretKey');
+        const caesarShift = document.getElementById('caesarShift');
+        const shiftValueInput = document.getElementById('shiftValue');
+
+        // 單表置換密碼的替換表 (A->D, B->E, C->F, ... X->A, Y->B, Z->C)
+        // 為了簡化，使用一個固定的替換表，例如簡單的凱撒位移 3
+        const substitutionMap = 'DEFGHIJKLMNOPQRSTUVWXYZABC'; 
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+        // --- 事件監聽器：根據選擇的方法顯示或隱藏參數欄位 ---
+        methodSelect.addEventListener('change', function() {
+            const selectedMethod = this.value;
+            
+            // 預設全部隱藏
+            keyField.style.display = 'none';
+            caesarShift.style.display = 'none';
+            
+            // 根據選擇的方法顯示對應欄位
+            if (selectedMethod === 'aes' || selectedMethod === 'xor') {
+                keyField.style.display = 'block';
+            } else if (selectedMethod === 'caesar') {
+                caesarShift.style.display = 'block';
+            }
+        });
+
+        // 手動觸發一次 change 事件，確保初始狀態正確
+        methodSelect.dispatchEvent(new Event('change'));
+
+
+        // --- 核心執行函數 ---
+        function executeOperation(operationType) {
+            const method = methodSelect.value;
+            const input = inputText.value;
+            let result = '';
+
+            if (!input) {
+                alert('請輸入要處理的文字！');
+                return;
+            }
+
+            try {
+                switch (method) {
+                    case 'base64':
+                        result = base64Operation(input, operationType);
+                        break;
+                    case 'caesar':
+                        const shift = parseInt(shiftValueInput.value);
+                        if (isNaN(shift) || shift < 1 || shift > 25) {
+                            alert('凱撒密碼位移量必須在 1 到 25 之間！');
+                            return;
+                        }
+                        result = caesarOperation(input, operationType, shift);
+                        break;
+                    case 'substitution':
+                        result = substitutionOperation(input, operationType);
+                        break;
+                    case 'aes':
+                        const key = secretKeyInput.value;
+                        if (!key) {
+                            alert('請輸入 AES 密鑰！');
+                            return;
+                        }
+                        result = aesOperation(input, operationType, key);
+                        break;
+                    case 'xor':
+                        const xorKey = secretKeyInput.value;
+                        if (!xorKey) {
+                            alert('請輸入 XOR 密鑰！');
+                            return;
+                        }
+                        result = xorOperation(input, operationType, xorKey);
+                        break;
+                    default:
+                        result = '未知的操作方法。';
+                }
+            } catch (error) {
+                result = `執行失敗，請檢查輸入或密鑰是否正確。錯誤: ${error.message}`;
+                console.error(error);
+            }
+            
+            outputText.value = result;
+        }
+
+
+        // --- 5 種操作方法的實現 ---
+
+        // 1. Base64 編碼/解碼
+        function base64Operation(input, operationType) {
+            if (operationType === 'encrypt') {
+                // 編碼：將普通字串轉換為 Base64 (處理 Unicode 字元)
+                return btoa(unescape(encodeURIComponent(input))); 
+            } else {
+                // 解碼：將 Base64 轉換為普通字串 (處理 Unicode 字元)
+                return decodeURIComponent(escape(atob(input)));
+            }
+        }
+
+        // 2. 凱撒密碼 (只處理英文字母)
+        function caesarOperation(input, operationType, shift) {
+            // 與單表置換邏輯幾乎相同，只是 shift 是變數
+            const s = operationType === 'encrypt' ? shift : -shift; 
+            
+            return input.toUpperCase().replace(/[A-Z]/g, (char) => {
+                const charCode = char.charCodeAt(0);
+                const offset = 65; // 'A' 的 ASCII 碼
+                
+                let newCharCode = charCode + s;
+                
+                // 確保循環回到 A-Z 範圍內 (模 26 運算)
+                newCharCode = (newCharCode - offset + 26) % 26 + offset;
+
+                return String.fromCharCode(newCharCode);
+            });
+        }
+        
+        // 3. 單表置換密碼 (使用固定替換表 A->D, B->E, ...)
+        function substitutionOperation(input, operationType) {
+            let result = '';
+            const processedInput = input.toUpperCase();
+            
+            for (let i = 0; i < processedInput.length; i++) {
+                const char = processedInput[i];
+                const index = alphabet.indexOf(char);
+
+                if (index !== -1) {
+                    if (operationType === 'encrypt') {
+                        // 加密：從明文字母表找到位置，使用密文字母表的對應字母
+                        result += substitutionMap[index];
+                    } else {
+                        // 解密：從密文字母表找到位置，使用明文字母表的對應字母
+                        const decryptIndex = substitutionMap.indexOf(char);
+                        result += alphabet[decryptIndex];
+                    }
+                } else {
+                    // 非字母字元保持不變
+                    result += char;
+                }
+            }
+            return result;
+        }
+
+        // 4. AES 對稱加密/解密 (使用 crypto-js 庫)
+        function aesOperation(input, operationType, key) {
+            if (operationType === 'encrypt') {
+                // 加密
+                const encrypted = CryptoJS.AES.encrypt(input, key).toString();
+                return encrypted;
+            } else {
+                // 解密
+                const decryptedBytes = CryptoJS.AES.decrypt(input, key);
+                // 將位元組轉換為 UTF-8 字串
+                const decryptedText = decryptedBytes.toString(CryptoJS.enc.Utf8); 
+
+                if (decryptedText === '') {
+                    throw new Error('解密失敗，可能密鑰或密文錯誤！');
+                }
+                return decryptedText;
+            }
+        }
+        
+        // 5. 異或運算加密/解密 (XOR Cipher)
+        function xorOperation(input, operationType, key) {
+            let output = '';
+            // 加密和解密邏輯相同
+            for (let i = 0; i < input.length; i++) {
+                // 取輸入字元碼和密鑰字元碼進行 XOR 運算
+                const inputCharCode = input.charCodeAt(i);
+                const keyCharCode = key.charCodeAt(i % key.length); // 循環使用密鑰
+                
+                const outputCharCode = inputCharCode ^ keyCharCode;
+                output += String.fromCharCode(outputCharCode);
+            }
+            
+            if (operationType === 'encrypt') {
+                // 為了方便顯示，將加密結果進行 Base64 編碼
+                return btoa(output); 
+            } else {
+                 // 解密前需要先將 Base64 解碼回來
+                const decodedInput = atob(input);
+                
+                let decrypted = '';
+                for (let i = 0; i < decodedInput.length; i++) {
+                    const inputCharCode = decodedInput.charCodeAt(i);
+                    const keyCharCode = key.charCodeAt(i % key.length); // 循環使用密鑰
+                    const outputCharCode = inputCharCode ^ keyCharCode;
+                    decrypted += String.fromCharCode(outputCharCode);
+                }
+                return decrypted;
+            }
+        }
+    </script>
+</body>
+</html>

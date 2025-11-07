@@ -8,6 +8,7 @@ const caesarShift = document.getElementById('caesarShift');
 const shiftValueInput = document.getElementById('shiftValue');
 
 
+
 // --- 事件監聽器：根據選擇的方法顯示或隱藏密鑰/位移欄位 ---
 methodSelect.addEventListener('change', function() {
     const selectedMethod = this.value;

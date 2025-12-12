@@ -170,9 +170,14 @@
         <textarea id="inputText" placeholder="請在此輸入文字..."></textarea>
         
         <div id="keyField" style="display:none;">
-            <label for="secretKey"><i class="fas fa-lock"></i> 輸入密鑰 (Key):</label>
-            <input type="text" id="secretKey" value="mysecretkey" placeholder="輸入 AES 或 XOR 的密鑰">
+        <label for="secretKey"><i class="fas fa-lock"></i> 輸入密鑰 (Key):</label>
+        <div style="display: flex; gap: 10px;">
+           <input type="text" id="secretKeyInput" value="mysecretkey" placeholder="輸入密鑰" style="flex-grow: 1;">
+            <button id="generateKeyBtn" type="button" class="encrypt-btn" style="width: auto; padding: 10px 15px; font-size: 1em; box-shadow: none;" onclick="generateRandomKey()">
+                <i class="fas fa-magic"></i> 生成密鑰
+            </button>
         </div>
+    </div>
         
         <div id="caesarShift" style="display:none;">
             <label for="shiftValue"><i class="fas fa-arrows-alt-h"></i> 凱撒密碼位移量 (Shift 1-25):</label>
@@ -196,7 +201,10 @@
         const inputText = document.getElementById('inputText');
         const outputText = document.getElementById('outputText');
         const keyField = document.getElementById('keyField');
-        const secretKeyInput = document.getElementById('secretKey');
+        
+        const secretKeyInput = document.getElementById('secretKeyInput');
+        const generateKeyBtn = document.getElementById('generateKeyBtn');
+
         const caesarShift = document.getElementById('caesarShift');
         const shiftValueInput = document.getElementById('shiftValue');
 
@@ -214,15 +222,61 @@
             caesarShift.style.display = 'none';
             
             // 根據選擇的方法顯示對應欄位
-            if (selectedMethod === 'aes' || selectedMethod === 'xor') {
-                keyField.style.display = 'block';
-            } else if (selectedMethod === 'caesar') {
-                caesarShift.style.display = 'block';
-            }
+            if (selectedMethod === 'aes' || selectedMethod === 'xor' || selectedMethod === 'substitution') {
+    keyField.style.display = 'block';
+
+    // 根據方法調整按鈕文字和行為
+     if (selectedMethod === 'substitution') {
+            // 單表置換需要 26 個字母的密鑰
+            generateKeyBtn.innerHTML = '<i class="fas fa-dice"></i> 生成置換表';
+            generateKeyBtn.onclick = () => generateRandomKey(true); // 傳入 true 生成 26 位密鑰
+        } else {
+            // AES/XOR 只需要一般密鑰
+           generateKeyBtn.innerHTML = '<i class="fas fa-magic"></i> 生成密鑰';
+            generateKeyBtn.onclick = () => generateRandomKey(false); // 傳入 false 生成一般密鑰
+        }
+
+    } else if (selectedMethod === 'caesar') {
+        caesarShift.style.display = 'block';
+    }
         });
 
         // 手動觸發一次 change 事件，確保初始狀態正確
         methodSelect.dispatchEvent(new Event('change'));
+
+
+
+/**
+ * 生成隨機密鑰。
+ * @param {boolean} isSubstitutionKey - 如果為 true，生成 26 個不重複字母的密鑰 (供 Substitution 使用)。
+ */
+function generateRandomKey(isSubstitutionKey = false) {
+    if (isSubstitutionKey) {
+        // 生成單表置換密碼的替換表 (26 個不重複的字母)
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let array = alphabet.split('');
+        
+        // Fisher-Yates 洗牌算法
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        secretKeyInput.value = array.join('');
+        alert('已生成 26 位隨機置換表！');
+
+    } else {
+        // 生成 AES/XOR 用的隨機密鑰 (例如 16 個隨機字元)
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01789'; // 避免 O, I, L 等易混淆字元
+        let key = '';
+        const keyLength = 16;
+        for (let i = 0; i < keyLength; i++) {
+            key += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        secretKeyInput.value = key;
+        alert(`已生成 ${keyLength} 位隨機密鑰！`);
+    }
+}
+
 
 
         // --- 核心執行函數 ---

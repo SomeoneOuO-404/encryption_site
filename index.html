@@ -2,13 +2,9 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>多功能加密解密工具（真正 ChaCha20）</title>
+<title>多功能加密解密工具（Blowfish 版）</title>
 
-<!-- CryptoJS：只給 AES / XOR 用 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-
-<!-- libsodium：真正 ChaCha20 -->
-<script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.15/dist/libsodium-wrappers.min.js"></script>
 
 <style>
 body {
@@ -32,6 +28,7 @@ textarea, input, select {
     margin-top: 6px;
     border-radius: 6px;
     border: 1px solid #ccc;
+    box-sizing: border-box;
 }
 textarea { height: 110px; font-family: monospace; }
 #outputText { background: #fff8e1; height: 150px; }
@@ -51,7 +48,10 @@ button {
 }
 .encrypt { background: #007bff; }
 .decrypt { background: #28a745; }
-.keygen { width:120px; background:#4f7cff; }
+.keygen {
+    width:120px;
+    background:#4f7cff;
+}
 </style>
 </head>
 
@@ -62,21 +62,21 @@ button {
 
 <label>1. 選擇方法</label>
 <select id="methodSelect">
-    <option value="chacha">1. ChaCha20（XChaCha20-Poly1305）</option>
-    <option value="caesar">2. 凱撒密碼</option>
-    <option value="substitution">3. 單表置換密碼</option>
-    <option value="aes">4. AES 對稱加密</option>
-    <option value="xor">5. XOR 加密</option>
+    <option value="blowfish">1. Blowfish 對稱式加密 / 解密</option>
+    <option value="aes">2. AES 對稱加密</option>
+    <option value="xor">3. XOR 加密</option>
+    <option value="caesar">4. 凱撒密碼</option>
+    <option value="substitution">5. 單表置換密碼</option>
 </select>
 
 <label>2. 輸入文字</label>
 <textarea id="inputText"></textarea>
 
 <div id="keyField">
-    <label>🔒 輸入密鑰 (Key)</label>
+    <label>🔒 輸入密鑰 (Key):</label>
     <div style="display:flex; gap:10px;">
-        <input type="text" id="secretKeyInput" placeholder="輸入或生成密鑰" style="flex:1;">
-        <button class="keygen" onclick="generateRandomKey()">生成密鑰</button>
+        <input type="text" id="secretKeyInput" placeholder="請輸入或生成密鑰" style="flex:1;">
+        <button type="button" class="keygen" onclick="generateRandomKey()">生成密鑰</button>
     </div>
 </div>
 
@@ -105,19 +105,12 @@ const secretKeyInput = document.getElementById('secretKeyInput');
 const caesarShift = document.getElementById('caesarShift');
 const shiftValueInput = document.getElementById('shiftValue');
 
-// ================== libsodium 初始化 ==================
-let sodiumReady = false;
-(async () => {
-    await sodium.ready;
-    sodiumReady = true;
-})();
-
 // ================== UI 控制 ==================
 methodSelect.addEventListener('change', () => {
     keyField.style.display = 'none';
     caesarShift.style.display = 'none';
 
-    if (['chacha','aes','xor','substitution'].includes(methodSelect.value)) {
+    if (['blowfish','aes','xor','substitution'].includes(methodSelect.value)) {
         keyField.style.display = 'block';
     }
     if (methodSelect.value === 'caesar') {
@@ -127,7 +120,7 @@ methodSelect.addEventListener('change', () => {
 methodSelect.dispatchEvent(new Event('change'));
 
 // ================== 核心 ==================
-async function executeOperation(type) {
+function executeOperation(type) {
     const method = methodSelect.value;
     const input = inputText.value;
     const key = secretKeyInput.value;
@@ -136,104 +129,96 @@ async function executeOperation(type) {
 
     try {
         switch (method) {
-            case 'chacha':
-                if (!key) throw new Error('請輸入 ChaCha20 密鑰');
-                result = await chachaOperation(input, type, key);
+            case 'blowfish':
+                if (!key) throw new Error('請輸入 Blowfish 密鑰');
+                result = blowfishOperation(input, type, key);
                 break;
+
+            case 'aes':
+                if (!key) throw new Error('請輸入 AES 密鑰');
+                result = aesOperation(input, type, key);
+                break;
+
+            case 'xor':
+                if (!key) throw new Error('請輸入 XOR 密鑰');
+                result = xorOperation(input, type, key);
+                break;
+
             case 'caesar':
                 result = caesarOperation(input, type, shift);
                 break;
+
             case 'substitution':
                 result = substitutionOperation(input, type, key);
-                break;
-            case 'aes':
-                result = aesOperation(input, type, key);
-                break;
-            case 'xor':
-                result = xorOperation(input, type, key);
                 break;
         }
     } catch (e) {
         result = e.message;
     }
+
     outputText.value = result;
 }
 
-// ================== 真正 ChaCha20 ==================
-async function chachaOperation(input, type, keyStr) {
-    if (!sodiumReady) throw new Error('libsodium 尚未初始化完成');
-
-    const key = sodium.crypto_generichash(32, sodium.from_string(keyStr));
-
+// ================== Blowfish ==================
+function blowfishOperation(input, type, key) {
     if (type === 'encrypt') {
-        const nonce = sodium.randombytes_buf(
-            sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
-        );
-        const cipher = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-            sodium.from_string(input),
-            null,
-            null,
-            nonce,
-            key
-        );
-        const packed = new Uint8Array(nonce.length + cipher.length);
-        packed.set(nonce, 0);
-        packed.set(cipher, nonce.length);
-        return sodium.to_base64(packed);
+        return CryptoJS.Blowfish.encrypt(input, key).toString();
     } else {
-        const packed = sodium.from_base64(input);
-        const nlen = sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
-        const nonce = packed.slice(0, nlen);
-        const cipher = packed.slice(nlen);
-        const plain = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-            null,
-            cipher,
-            null,
-            nonce,
-            key
-        );
-        return sodium.to_string(plain);
+        const bytes = CryptoJS.Blowfish.decrypt(input, key);
+        const text = bytes.toString(CryptoJS.enc.Utf8);
+        if (!text) throw new Error('Blowfish 解密失敗（密鑰錯誤）');
+        return text;
     }
 }
 
-// ================== 其他演算法 ==================
+// ================== AES ==================
+function aesOperation(input, type, key) {
+    return type === 'encrypt'
+        ? CryptoJS.AES.encrypt(input, key).toString()
+        : CryptoJS.AES.decrypt(input, key).toString(CryptoJS.enc.Utf8);
+}
+
+// ================== XOR ==================
+function xorOperation(input, type, key) {
+    let r = '';
+    for (let i = 0; i < input.length; i++) {
+        r += String.fromCharCode(
+            input.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+        );
+    }
+    return type === 'encrypt'
+        ? btoa(unescape(encodeURIComponent(r)))
+        : decodeURIComponent(escape(atob(r)));
+}
+
+// ================== Caesar ==================
 function caesarOperation(text, type, shift) {
     if (type === 'decrypt') shift = -shift;
     return text.toUpperCase().replace(/[A-Z]/g, c =>
-        String.fromCharCode((c.charCodeAt(0)-65+shift+26)%26+65)
+        String.fromCharCode((c.charCodeAt(0) - 65 + shift + 26) % 26 + 65)
     );
 }
 
+// ================== Substitution ==================
 function substitutionOperation(text, type, key) {
-    const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    key=key.toUpperCase();
-    if(key.length!==26) throw new Error('密鑰需 26 字母');
-    return text.toUpperCase().replace(/[A-Z]/g,c=>{
-        const i=type==='encrypt'?A.indexOf(c):key.indexOf(c);
-        return type==='encrypt'?key[i]:A[i];
+    const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    key = (key || '').toUpperCase();
+    if (key.length !== 26) throw new Error('密鑰需 26 字母');
+
+    return text.toUpperCase().replace(/[A-Z]/g, c => {
+        const i = type === 'encrypt' ? A.indexOf(c) : key.indexOf(c);
+        return type === 'encrypt' ? key[i] : A[i];
     });
-}
-
-function aesOperation(text, type, key) {
-    return type==='encrypt'
-        ? CryptoJS.AES.encrypt(text,key).toString()
-        : CryptoJS.AES.decrypt(text,key).toString(CryptoJS.enc.Utf8);
-}
-
-function xorOperation(text, type, key) {
-    let r='';
-    for(let i=0;i<text.length;i++){
-        r+=String.fromCharCode(text.charCodeAt(i)^key.charCodeAt(i%key.length));
-    }
-    return type==='encrypt'?btoa(r):xorOperation(atob(text),'encrypt',key);
 }
 
 // ================== 生成密鑰 ==================
 function generateRandomKey() {
-    const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let key='';
-    for(let i=0;i<16;i++) key+=chars[Math.floor(Math.random()*chars.length)];
-    secretKeyInput.value=key;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let key = '';
+    for (let i = 0; i < 16; i++) {
+        key += chars[Math.floor(Math.random() * chars.length)];
+    }
+    secretKeyInput.value = key;
 }
 </script>
 </body>

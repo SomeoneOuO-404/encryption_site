@@ -3,9 +3,22 @@ const methodSelect = document.getElementById('methodSelect');
 const inputText = document.getElementById('inputText');
 const outputText = document.getElementById('outputText');
 const keyField = document.getElementById('keyField');
-const secretKeyInput = document.getElementById('secretKey');
+
+// ⚠️ 這裡請確認你的 HTML input id 是哪個：
+// 如果你的 HTML 是 <input id="secretKeyInput"> 用這行
+const secretKeyInput = document.getElementById('secretKeyInput');
+// 如果你的 HTML 是 <input id="secretKey"> 就改成：
+// const secretKeyInput = document.getElementById('secretKey');
+
 const caesarShift = document.getElementById('caesarShift');
 const shiftValueInput = document.getElementById('shiftValue');
+
+// ================== libsodium 初始化 ==================
+let sodiumReady = false;
+(async () => {
+  await sodium.ready;
+  sodiumReady = true;
+})();
 
 // ================== UI 控制 ==================
 methodSelect.addEventListener('change', function () {
@@ -20,7 +33,6 @@ methodSelect.addEventListener('change', function () {
         caesarShift.style.display = 'block';
     }
 });
-
 methodSelect.dispatchEvent(new Event('change'));
 
 // ================== 核心執行 ==================
@@ -28,7 +40,7 @@ async function executeOperation(operationType) {
     const method = methodSelect.value;
     const input = inputText.value;
     const key = secretKeyInput.value;
-    const shift = parseInt(shiftValueInput.value);
+    const shift = parseInt(shiftValueInput.value, 10);
     let result = '';
 
     if (!input) {
@@ -43,7 +55,7 @@ async function executeOperation(operationType) {
                     alert('請輸入 ChaCha20 密鑰！');
                     return;
                 }
-                result = chachaOperation(input, operationType, key);
+                result = await chachaOperation(input, operationType, key);
                 break;
 
             case 'caesar':
@@ -85,27 +97,60 @@ async function executeOperation(operationType) {
     outputText.value = result;
 }
 
-// ================== ChaCha20 ==================
-function chachaOperation(input, operationType, key) {
-    // 96-bit nonce（教學用，實務請隨機）
-    const nonce = CryptoJS.enc.Hex.parse("000000000000000000000000");
+// ================== 真正 ChaCha20-Poly1305（libsodium） ==================
+// 這裡使用 XChaCha20-Poly1305-IETF（nonce 24 bytes），比 12 bytes nonce 更安全/更好用
+// 加密輸出：base64(nonce || ciphertext)
+async function chachaOperation(input, operationType, keyStr) {
+    if (!sodiumReady) throw new Error('libsodium 尚未載入完成，請稍等 1 秒再試');
+
+    const sodium = window.sodium;
+
+    // 把使用者輸入的 key 字串 -> 固定 32 bytes key
+    // 這樣你不用要求使用者一定輸入 32 bytes
+    const key = sodium.crypto_generichash(32, sodium.from_string(keyStr));
 
     if (operationType === 'encrypt') {
-        const encrypted = CryptoJS.ChaCha20.encrypt(
-            input,
-            CryptoJS.enc.Utf8.parse(key),
-            { iv: nonce }
+        const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES); // 24 bytes
+        const msg = sodium.from_string(input);
+
+        const cipher = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+            msg,
+            null,      // additional data (AAD) 可不用
+            null,      // nsec 不用
+            nonce,
+            key
         );
-        return encrypted.toString(); // Base64
+
+        // 合併 nonce + cipher，方便一次貼上/儲存
+        const packed = new Uint8Array(nonce.length + cipher.length);
+        packed.set(nonce, 0);
+        packed.set(cipher, nonce.length);
+
+        return sodium.to_base64(packed, sodium.base64_variants.ORIGINAL);
     } else {
-        const decrypted = CryptoJS.ChaCha20.decrypt(
-            input,
-            CryptoJS.enc.Utf8.parse(key),
-            { iv: nonce }
-        );
-        const text = decrypted.toString(CryptoJS.enc.Utf8);
-        if (!text) throw new Error('ChaCha20 解密失敗（密鑰錯誤或密文損毀）');
-        return text;
+        // 解密：把 base64 轉回 packed，再切 nonce/cipher
+        const packed = sodium.from_base64(input, sodium.base64_variants.ORIGINAL);
+
+        const nlen = sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES; // 24
+        if (packed.length <= nlen) throw new Error('密文格式錯誤（太短）');
+
+        const nonce = packed.slice(0, nlen);
+        const cipher = packed.slice(nlen);
+
+        let plain;
+        try {
+            plain = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+                null,  // nsec 不用
+                cipher,
+                null,  // AAD
+                nonce,
+                key
+            );
+        } catch {
+            throw new Error('ChaCha20 解密失敗（密鑰錯誤或密文被改）');
+        }
+
+        return sodium.to_string(plain);
     }
 }
 
@@ -120,7 +165,7 @@ function caesarOperation(input, operationType, shift) {
 // ================== 單表置換 ==================
 function substitutionOperation(input, operationType, key) {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const subKey = key.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 26);
+    const subKey = (key || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 26);
 
     if (subKey.length < 26) {
         throw new Error('單表置換密鑰需 26 個字母');
@@ -139,7 +184,7 @@ function substitutionOperation(input, operationType, key) {
     }).join('');
 }
 
-// ================== AES ==================
+// ================== AES（CryptoJS） ==================
 function aesOperation(input, operationType, key) {
     if (operationType === 'encrypt') {
         return CryptoJS.AES.encrypt(input, key).toString();
@@ -159,7 +204,18 @@ function xorOperation(input, operationType, key) {
             input.charCodeAt(i) ^ key.charCodeAt(i % key.length)
         );
     }
-    return operationType === 'encrypt'
-        ? btoa(unescape(encodeURIComponent(result)))
-        : decodeURIComponent(escape(atob(result)));
+
+    if (operationType === 'encrypt') {
+        return btoa(unescape(encodeURIComponent(result)));
+    } else {
+        // input 是 base64 字串，先 decode 成 XOR 的結果，再回傳文字
+        const decoded = decodeURIComponent(escape(atob(input)));
+        let plain = '';
+        for (let i = 0; i < decoded.length; i++) {
+            plain += String.fromCharCode(
+                decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+            );
+        }
+        return plain;
+    }
 }

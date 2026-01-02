@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from modifiers import (
     atbash,
@@ -14,7 +14,6 @@ from modifiers import (
 
 app = FastAPI(title="五種加解密系統")
 
-from pydantic import BaseModel, Field
 
 class CryptoRequest(BaseModel):
     method: str = Field(
@@ -41,35 +40,39 @@ class CryptoRequest(BaseModel):
     )
 
 
-
 @app.post("/crypto")
 def crypto(req: CryptoRequest):
-    if req.method == "atbash":
+    method = req.method.lower()
+    action = req.action.lower()
+
+    if method == "atbash":
         return {"result": atbash(req.text)}
 
-    if req.method == "caesar":
-        shift = req.shift if req.action == "encrypt" else -req.shift
+    if method == "caesar":
+        if req.shift is None:
+            return {"error": "Caesar Cipher 需要 shift 參數"}
+
+        shift = req.shift if action == "encrypt" else -req.shift
         return {"result": caesar(req.text, shift)}
 
-    if req.method == "substitution":
-        return {"result": substitution(req.text, req.action)}
+    if method == "substitution":
+        return {"result": substitution(req.text, action)}
 
-
-    if req.method == "aes":
+    if method == "aes":
         if not req.key:
             return {"error": "AES 需要密鑰"}
         return {
             "result": aes_encrypt(req.text, req.key)
-            if req.action == "encrypt"
+            if action == "encrypt"
             else aes_decrypt(req.text, req.key)
         }
 
-    if req.method == "xor":
+    if method == "xor":
         if not req.key:
             return {"error": "XOR 需要密鑰"}
         return {
             "result": xor_encrypt(req.text, req.key)
-            if req.action == "encrypt"
+            if action == "encrypt"
             else xor_decrypt(req.text, req.key)
         }
 

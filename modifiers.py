@@ -4,13 +4,6 @@ import hashlib
 from cryptography.fernet import Fernet
 from vars import SUBSTITUTION_TABLE
 
-# 正向：A -> I
-# 反向：I -> A
-REVERSE_SUBSTITUTION_TABLE = {
-    SUBSTITUTION_TABLE[i]: string.ascii_uppercase[i]
-    for i in range(26)
-}
-
 
 # =========================
 # 1. Atbash Cipher
@@ -43,9 +36,15 @@ def caesar(text: str, shift: int) -> str:
 
 
 # =========================
-# 3. Substitution Cipher
+# 3. Substitution Cipher（僅加密）
 # =========================
 def substitution(text: str) -> str:
+    """
+    單表替換（Substitution Cipher）：
+    - 本專案採用固定替換表 SUBSTITUTION_TABLE
+    - 不提供反向解密（decrypt）
+    - 僅支援英文大寫 A-Z
+    """
     result = ""
     for c in text:
         if c in string.ascii_uppercase:

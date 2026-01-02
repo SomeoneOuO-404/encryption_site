@@ -45,19 +45,22 @@ def crypto(req: CryptoRequest):
     method = req.method.lower()
     action = req.action.lower()
 
+    # 1. Atbash
     if method == "atbash":
         return {"result": atbash(req.text)}
 
+    # 2. Caesar
     if method == "caesar":
         if req.shift is None:
             return {"error": "Caesar Cipher 需要 shift 參數"}
-
         shift = req.shift if action == "encrypt" else -req.shift
         return {"result": caesar(req.text, shift)}
 
+    # 3. Substitution（僅加密，不用 action）
     if method == "substitution":
-        return {"result": substitution(req.text, action)}
+        return {"result": substitution(req.text)}
 
+    # 4. AES
     if method == "aes":
         if not req.key:
             return {"error": "AES 需要密鑰"}
@@ -67,6 +70,7 @@ def crypto(req: CryptoRequest):
             else aes_decrypt(req.text, req.key)
         }
 
+    # 5. XOR
     if method == "xor":
         if not req.key:
             return {"error": "XOR 需要密鑰"}
@@ -77,7 +81,6 @@ def crypto(req: CryptoRequest):
         }
 
     return {"error": "未知加密方式"}
-
 
 @app.get("/", response_class=HTMLResponse)
 def home():

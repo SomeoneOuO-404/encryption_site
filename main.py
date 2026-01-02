@@ -14,12 +14,32 @@ from modifiers import (
 
 app = FastAPI(title="五種加解密系統")
 
+from pydantic import BaseModel, Field
+
 class CryptoRequest(BaseModel):
-    method: str
-    action: str
-    text: str
-    key: str | None = None
-    shift: int | None = None
+    method: str = Field(
+        description="加密方式：atbash / caesar / substitution / aes / xor",
+        example="caesar"
+    )
+    action: str = Field(
+        description="操作模式：encrypt（加密）或 decrypt（解密）",
+        example="encrypt"
+    )
+    text: str = Field(
+        description="要進行加密或解密的文字內容",
+        example="HELLO"
+    )
+    key: str | None = Field(
+        default=None,
+        description="密鑰（AES 與 XOR 必填，其餘可不填）",
+        example="my-secret-key"
+    )
+    shift: int | None = Field(
+        default=None,
+        description="位移量（僅 Caesar Cipher 使用）",
+        example=3
+    )
+
 
 
 @app.post("/crypto")

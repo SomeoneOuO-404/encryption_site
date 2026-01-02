@@ -1,16 +1,27 @@
 # Encryption Site
 
-A FastAPI-based web application that provides five encryption and decryption methods.
+將文字透過不同的加密演算法，轉換成安全或可讀的形式。
 
-## Features
-1. Atbash Cipher
-2. Caesar Cipher
-3. Substitution Cipher (Uppercase English Only)
-4. AES Symmetric Encryption
-5. XOR Cipher
+---
 
-## How to Run
+## 這是什麼？
 
-```bash
-pip install -r requirements.txt
-uvicorn main:app --reload
+Encryption Site 是一個基於 **FastAPI** 的加解密展示系統。  
+系統會根據你選擇的加密方式，將輸入文字進行加密或解密處理。
+
+你可以提供任意文字與必要的參數（例如位移或密鑰），  
+系統會即時回傳對應的轉換結果。
+
+---
+
+## 如何使用
+
+只需要提供你想處理的文字與相關資訊，例如：
+
+**你提供的資訊：**
+- 文字：HELLO
+- 加密方式：Caesar Cipher
+- 位移量：3
+
+**系統會生成：**
+

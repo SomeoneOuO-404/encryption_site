@@ -1,101 +1,112 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <title>多功能加密解密工具（RSA 版）</title>
+<meta charset="UTF-8">
+<title>多功能加密解密工具（RSA 公鑰/私鑰版）</title>
 
-    <!-- AES 用 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
-    <style>
-        body {
-            font-family: Segoe UI, sans-serif;
-            background: #f0f4f8;
-            padding: 20px;
-        }
-        .container {
-            max-width: 720px;
-            margin: auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,.15);
-        }
-        h1 { text-align: center; color: #1a237e; }
-        label { font-weight: 600; margin-top: 15px; display: block; }
-        textarea, input, select {
-            width: 100%;
-            padding: 10px;
-            margin-top: 6px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            box-sizing: border-box;
-        }
-        textarea { height: 120px; }
-        #outputText {
-            height: 150px;
-            background: #fff8e1;
-            font-family: monospace;
-        }
-        #keyField, #caesarShift {
-            margin-top: 15px;
-            padding: 12px;
-            background: #fffde7;
-            border-left: 4px solid #ffc107;
-            display: none;
-        }
-        .button-group {
-            display: flex;
-            gap: 15px;
-            margin-top: 25px;
-        }
-        button {
-            flex: 1;
-            padding: 14px;
-            font-size: 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            color: white;
-        }
-        .encrypt { background: #007bff; }
-        .decrypt { background: #28a745; }
-    </style>
+<style>
+body {
+    font-family: Segoe UI, sans-serif;
+    background: #f0f4f8;
+    padding: 20px;
+}
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
+}
+h1 { text-align: center; color: #1a237e; }
+label { font-weight: 600; margin-top: 15px; display: block; }
+textarea, input, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+textarea { height: 110px; font-family: monospace; }
+#outputText { background: #fff8e1; height: 150px; }
+.keybox {
+    background: #f7f7f7;
+    border-left: 5px solid #007bff;
+    padding: 12px;
+    margin-top: 15px;
+}
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+button {
+    padding: 14px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: white;
+}
+.encrypt { background: #007bff; }
+.decrypt { background: #28a745; }
+.keybtn { background:#6c757d; margin-top:10px; }
+</style>
 </head>
+
 <body>
-
 <div class="container">
-    <h1>多功能加密 / 解密工具</h1>
 
-    <label>1. 選擇方法</label>
-    <select id="methodSelect">
-        <option value="rsa">1. RSA 公鑰加密 / 私鑰解密</option>
-        <option value="caesar">2. 凱撒密碼</option>
-        <option value="substitution">3. 單表置換密碼</option>
-        <option value="aes">4. AES 對稱加密</option>
-        <option value="xor">5. XOR 加密</option>
-    </select>
+<h1>多功能加密 / 解密工具</h1>
 
-    <label>2. 輸入文字</label>
-    <textarea id="inputText"></textarea>
+<!-- RSA Key Section -->
+<button class="keybtn" onclick="generateRSAKeyPair()">🔑 產生 RSA 公鑰 / 私鑰</button>
 
-    <div id="keyField">
-        <label>密鑰</label>
-        <input type="text" id="secretKeyInput">
-    </div>
+<div class="keybox">
+<label>RSA Public Key（公鑰）</label>
+<textarea id="publicKeyArea" readonly></textarea>
+</div>
 
-    <div id="caesarShift">
-        <label>凱撒位移量 (1–25)</label>
-        <input type="number" id="shiftValue" value="3" min="1" max="25">
-    </div>
+<div class="keybox">
+<label>RSA Private Key（私鑰）</label>
+<textarea id="privateKeyArea" readonly></textarea>
+</div>
 
-    <div class="button-group">
-        <button class="encrypt" onclick="executeOperation('encrypt')">加密</button>
-        <button class="decrypt" onclick="executeOperation('decrypt')">解密</button>
-    </div>
+<hr>
 
-    <label>3. 結果</label>
-    <textarea id="outputText" readonly></textarea>
+<label>1. 選擇方法</label>
+<select id="methodSelect">
+    <option value="rsa">1. RSA 公鑰加密 / 私鑰解密</option>
+    <option value="caesar">2. 凱撒密碼</option>
+    <option value="substitution">3. 單表置換密碼</option>
+    <option value="aes">4. AES 對稱加密</option>
+    <option value="xor">5. XOR 加密</option>
+</select>
+
+<label>2. 輸入文字</label>
+<textarea id="inputText"></textarea>
+
+<div id="keyField">
+    <label>對稱式密鑰（AES / XOR / Substitution）</label>
+    <input type="text" id="secretKeyInput">
+</div>
+
+<div id="caesarShift">
+    <label>凱撒位移量 (1–25)</label>
+    <input type="number" id="shiftValue" value="3" min="1" max="25">
+</div>
+
+<div class="button-group">
+    <button class="encrypt" onclick="executeOperation('encrypt')">加密</button>
+    <button class="decrypt" onclick="executeOperation('decrypt')">解密</button>
+</div>
+
+<label>3. 結果</label>
+<textarea id="outputText" readonly></textarea>
+
 </div>
 
 <script>
@@ -107,14 +118,34 @@ async function generateRSAKeyPair() {
         {
             name: "RSA-OAEP",
             modulusLength: 2048,
-            publicExponent: new Uint8Array([1, 0, 1]),
+            publicExponent: new Uint8Array([1,0,1]),
             hash: "SHA-256"
         },
         true,
-        ["encrypt", "decrypt"]
+        ["encrypt","decrypt"]
     );
+
+    document.getElementById("publicKeyArea").value =
+        await exportKey(rsaKeyPair.publicKey, "public");
+
+    document.getElementById("privateKeyArea").value =
+        await exportKey(rsaKeyPair.privateKey, "private");
 }
-generateRSAKeyPair();
+
+async function exportKey(key, type) {
+    const format = type === "public" ? "spki" : "pkcs8";
+    const exported = await crypto.subtle.exportKey(format, key);
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(exported)));
+
+    const header = type === "public"
+        ? "-----BEGIN PUBLIC KEY-----"
+        : "-----BEGIN PRIVATE KEY-----";
+    const footer = type === "public"
+        ? "-----END PUBLIC KEY-----"
+        : "-----END PRIVATE KEY-----";
+
+    return `${header}\n${base64.match(/.{1,64}/g).join("\n")}\n${footer}`;
+}
 
 /* ================== UI ================== */
 const methodSelect = document.getElementById('methodSelect');
@@ -125,7 +156,7 @@ methodSelect.addEventListener('change', () => {
     keyField.style.display = 'none';
     caesarShift.style.display = 'none';
 
-    if (['aes', 'xor', 'substitution'].includes(methodSelect.value)) {
+    if (['aes','xor','substitution'].includes(methodSelect.value)) {
         keyField.style.display = 'block';
     }
     if (methodSelect.value === 'caesar') {
@@ -160,16 +191,17 @@ async function executeOperation(type) {
     } catch (e) {
         result = e.message;
     }
-
     outputText.value = result;
 }
 
-/* ================== RSA ================== */
+/* ================== RSA Encrypt / Decrypt ================== */
 async function rsaOperation(input, type) {
+    if (!rsaKeyPair) throw new Error("請先產生 RSA 金鑰");
+
     if (type === 'encrypt') {
         const data = new TextEncoder().encode(input);
         const encrypted = await crypto.subtle.encrypt(
-            { name: "RSA-OAEP" },
+            { name:"RSA-OAEP" },
             rsaKeyPair.publicKey,
             data
         );
@@ -177,7 +209,7 @@ async function rsaOperation(input, type) {
     } else {
         const bytes = Uint8Array.from(atob(input), c => c.charCodeAt(0));
         const decrypted = await crypto.subtle.decrypt(
-            { name: "RSA-OAEP" },
+            { name:"RSA-OAEP" },
             rsaKeyPair.privateKey,
             bytes
         );
@@ -185,46 +217,37 @@ async function rsaOperation(input, type) {
     }
 }
 
-/* ================== Caesar ================== */
+/* ================== Other Algorithms ================== */
 function caesarOperation(text, type, shift) {
     if (type === 'decrypt') shift = -shift;
     return text.toUpperCase().replace(/[A-Z]/g, c =>
-        String.fromCharCode((c.charCodeAt(0) - 65 + shift + 26) % 26 + 65)
+        String.fromCharCode((c.charCodeAt(0)-65+shift+26)%26+65)
     );
 }
 
-/* ================== Substitution ================== */
 function substitutionOperation(text, type, key) {
-    const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    key = key.toUpperCase();
-    if (key.length !== 26) throw new Error('密鑰需 26 個字母');
-    return text.toUpperCase().replace(/[A-Z]/g, c => {
-        const i = type === 'encrypt' ? A.indexOf(c) : key.indexOf(c);
-        return type === 'encrypt' ? key[i] : A[i];
+    const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    key=key.toUpperCase();
+    if(key.length!==26) throw new Error("密鑰需 26 字母");
+    return text.toUpperCase().replace(/[A-Z]/g,c=>{
+        const i=type==='encrypt'?A.indexOf(c):key.indexOf(c);
+        return type==='encrypt'?key[i]:A[i];
     });
 }
 
-/* ================== AES ================== */
 function aesOperation(text, type, key) {
-    if (!key) throw new Error('請輸入 AES 密鑰');
-    if (type === 'encrypt') {
-        return CryptoJS.AES.encrypt(text, key).toString();
-    } else {
-        return CryptoJS.AES.decrypt(text, key).toString(CryptoJS.enc.Utf8);
-    }
+    if(!key) throw new Error("請輸入 AES 密鑰");
+    return type==='encrypt'
+        ? CryptoJS.AES.encrypt(text,key).toString()
+        : CryptoJS.AES.decrypt(text,key).toString(CryptoJS.enc.Utf8);
 }
 
-/* ================== XOR ================== */
 function xorOperation(text, type, key) {
-    let r = '';
-    for (let i = 0; i < text.length; i++) {
-        r += String.fromCharCode(
-            text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-        );
+    let r='';
+    for(let i=0;i<text.length;i++){
+        r+=String.fromCharCode(text.charCodeAt(i)^key.charCodeAt(i%key.length));
     }
-    return type === 'encrypt'
-        ? btoa(r)
-        : xorOperation(atob(text), 'encrypt', key);
+    return type==='encrypt'?btoa(r):xorOperation(atob(text),'encrypt',key);
 }
 </script>
 </body>

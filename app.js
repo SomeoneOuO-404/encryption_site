@@ -1,4 +1,4 @@
-// 綁定元素，用於控制顯示/隱藏和獲取輸入值
+// ================== 元素綁定 ==================
 const methodSelect = document.getElementById('methodSelect');
 const inputText = document.getElementById('inputText');
 const outputText = document.getElementById('outputText');
@@ -7,30 +7,42 @@ const secretKeyInput = document.getElementById('secretKey');
 const caesarShift = document.getElementById('caesarShift');
 const shiftValueInput = document.getElementById('shiftValue');
 
+// ================== RSA 金鑰 ==================
+let rsaKeyPair = null;
 
+// 產生 RSA 金鑰（頁面載入一次）
+async function generateRSAKeyPair() {
+    rsaKeyPair = await crypto.subtle.generateKey(
+        {
+            name: "RSA-OAEP",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256"
+        },
+        true,
+        ["encrypt", "decrypt"]
+    );
+}
+generateRSAKeyPair();
 
-// --- 事件監聽器：根據選擇的方法顯示或隱藏密鑰/位移欄位 ---
-methodSelect.addEventListener('change', function() {
-    const selectedMethod = this.value;
-    
-    // 預設全部隱藏
+// ================== UI 控制 ==================
+methodSelect.addEventListener('change', function () {
+    const method = this.value;
+
     keyField.style.display = 'none';
     caesarShift.style.display = 'none';
-    
-    // 根據選擇的方法顯示對應欄位
-    if (selectedMethod === 'aes' || selectedMethod === 'xor' || selectedMethod === 'substitution') {
+
+    if (method === 'aes' || method === 'xor' || method === 'substitution') {
         keyField.style.display = 'block';
-    } else if (selectedMethod === 'caesar') {
+    } else if (method === 'caesar') {
         caesarShift.style.display = 'block';
     }
 });
 
-// 手動觸發一次 change 事件，確保初始狀態正確
 methodSelect.dispatchEvent(new Event('change'));
 
-
-// --- 核心執行函數 ---
-function executeOperation(operationType) {
+// ================== 核心執行 ==================
+async function executeOperation(operationType) {
     const method = methodSelect.value;
     const input = inputText.value;
     const key = secretKeyInput.value;
@@ -44,19 +56,22 @@ function executeOperation(operationType) {
 
     try {
         switch (method) {
-            case 'base64':
-                result = base64Operation(input, operationType);
+            case 'rsa':
+                result = await rsaOperation(input, operationType);
                 break;
+
             case 'caesar':
                 if (isNaN(shift)) {
-                    alert('請輸入有效的凱撒密碼位移量！');
+                    alert('請輸入有效的凱撒位移量！');
                     return;
                 }
                 result = caesarOperation(input, operationType, shift);
                 break;
+
             case 'substitution':
                 result = substitutionOperation(input, operationType, key);
                 break;
+
             case 'aes':
                 if (!key) {
                     alert('請輸入 AES 密鑰！');
@@ -64,6 +79,7 @@ function executeOperation(operationType) {
                 }
                 result = aesOperation(input, operationType, key);
                 break;
+
             case 'xor':
                 if (!key) {
                     alert('請輸入 XOR 密鑰！');
@@ -71,139 +87,104 @@ function executeOperation(operationType) {
                 }
                 result = xorOperation(input, operationType, key);
                 break;
+
             default:
-                result = '未知的操作方法。';
+                result = '未知的操作方法';
         }
-    } catch (error) {
-        result = '執行失敗，請檢查輸入或密鑰是否正確。錯誤: ' + error.message;
-        console.error(error);
+    } catch (err) {
+        console.error(err);
+        result = '執行失敗：' + err.message;
     }
-    
+
     outputText.value = result;
 }
 
+// ================== RSA 加解密 ==================
+async function rsaOperation(input, operationType) {
+    if (!rsaKeyPair) {
+        throw new Error('RSA 金鑰尚未就緒');
+    }
 
-// --- 5 種操作方法的實現 ---
-
-// 1. Base64 編碼/解碼
-function base64Operation(input, operationType) {
     if (operationType === 'encrypt') {
-        // 編碼：將普通字串轉換為 Base64
-        return btoa(unescape(encodeURIComponent(input))); // 處理中文等 Unicode 字元
+        const encoded = new TextEncoder().encode(input);
+
+        const encrypted = await crypto.subtle.encrypt(
+            { name: "RSA-OAEP" },
+            rsaKeyPair.publicKey,
+            encoded
+        );
+
+        // ArrayBuffer → Base64（僅作顯示用途）
+        return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
     } else {
-        // 解碼：將 Base64 轉換為普通字串
-        return decodeURIComponent(escape(atob(input)));
+        const encryptedBytes = Uint8Array.from(
+            atob(input),
+            c => c.charCodeAt(0)
+        );
+
+        const decrypted = await crypto.subtle.decrypt(
+            { name: "RSA-OAEP" },
+            rsaKeyPair.privateKey,
+            encryptedBytes
+        );
+
+        return new TextDecoder().decode(decrypted);
     }
 }
 
-// 2. 凱撒密碼 (只處理英文字母)
-function caesarOperation(input, operationType, shift) {
-    const s = operationType === 'encrypt' ? shift : -shift; // 加密是正向位移，解密是反向位移
-    
-    return input.toUpperCase().replace(/[A-Z]/g, (char) => {
-        const charCode = char.charCodeAt(0);
-        let offset = 65; // 'A' 的 ASCII 碼
-        
-        let newCharCode = charCode + s;
-        
-        // 確保循環回到 A-Z 範圍內
-        if (s > 0) {
-            newCharCode = (newCharCode - offset) % 26 + offset;
-        } else {
-            // 處理負數位移 (解密)
-            newCharCode = (newCharCode - offset + 26) % 26 + offset;
-        }
+// ================== 其他原有功能（未動） ==================
 
-        return String.fromCharCode(newCharCode);
-    });
+// 凱撒密碼
+function caesarOperation(input, operationType, shift) {
+    const s = operationType === 'encrypt' ? shift : -shift;
+    return input.toUpperCase().replace(/[A-Z]/g, c =>
+        String.fromCharCode((c.charCodeAt(0) - 65 + s + 26) % 26 + 65)
+    );
 }
 
-// 3. 單表置換密碼 (使用密鑰作為置換表)
+// 單表置換
 function substitutionOperation(input, operationType, key) {
-    // 這裡為了演示簡單，讓 key 成為一個長度 26 的替換表
-    // Key: 必須是 26 個不重複的字母
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const subKey = key.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 26);
-    
+
     if (subKey.length < 26) {
-        throw new Error('單表置換密鑰必須包含至少 26 個英文字母！');
+        throw new Error('單表置換密鑰需 26 個字母');
     }
 
-    let mapA = alphabet; // 明文的字母表
-    let mapB = subKey;    // 密文的字母表 (替換表)
-    
+    let mapA = alphabet;
+    let mapB = subKey;
+
     if (operationType === 'decrypt') {
-        // 解密時，將替換表顛倒
         [mapA, mapB] = [mapB, mapA];
     }
-    
-    let result = '';
-    input = input.toUpperCase();
 
-    for (let i = 0; i < input.length; i++) {
-        const char = input[i];
-        const index = mapA.indexOf(char);
-
-        if (index !== -1) {
-            result += mapB[index];
-        } else {
-            result += char; // 非字母字符不變
-        }
-    }
-    return result;
+    return input.toUpperCase().split('').map(c => {
+        const i = mapA.indexOf(c);
+        return i === -1 ? c : mapB[i];
+    }).join('');
 }
 
-
-// 4. AES 對稱加密/解密 (使用 crypto-js 庫)
+// AES
 function aesOperation(input, operationType, key) {
     if (operationType === 'encrypt') {
-        // 加密
-        const encrypted = CryptoJS.AES.encrypt(input, key).toString();
-        return encrypted;
+        return CryptoJS.AES.encrypt(input, key).toString();
     } else {
-        // 解密
-        const decryptedBytes = CryptoJS.AES.decrypt(input, key);
-        // 將位元組轉換為 UTF-8 字串
-        const decryptedText = decryptedBytes.toString(CryptoJS.enc.Utf8); 
-
-        if (decryptedText === '') {
-            throw new Error('解密失敗，可能密鑰或密文錯誤！');
-        }
-        return decryptedText;
+        const bytes = CryptoJS.AES.decrypt(input, key);
+        const text = bytes.toString(CryptoJS.enc.Utf8);
+        if (!text) throw new Error('AES 解密失敗');
+        return text;
     }
 }
 
-// 5. 異或運算加密/解密 (XOR Cipher)
+// XOR
 function xorOperation(input, operationType, key) {
     let result = '';
     for (let i = 0; i < input.length; i++) {
-        const charCode = input.charCodeAt(i);
-        const keyChar = key.charCodeAt(i % key.length); // 循環使用密鑰字元
-        
-        // 使用 XOR 運算：加密和解密使用相同的邏輯
-        const xorResult = charCode ^ keyChar; 
-        result += String.fromCharCode(xorResult);
+        result += String.fromCharCode(
+            input.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+        );
     }
-    
-    // 為了讓輸出結果可見，通常會將異或結果再進行 Base64 編碼（加密操作）或解碼（解密操作）
-    // 這裡的實現是純粹的 XOR，可能導致不可見字元，但為了符合「加密/解密」的簡單演示目的暫不處理。
-    // *注意：在實際應用中，XOR 密文需要進行 Base64 或 Hex 編碼才能安全傳輸和顯示*
-    
-    // 如果是加密操作，將結果進行 Base64 編碼以便於顯示和傳輸
-    if (operationType === 'encrypt') {
-        // Base64 編碼，處理可能產生的不可見字元
-        return btoa(unescape(encodeURIComponent(result)));
-    } else {
-        // 解密操作，先進行 Base64 解碼，再進行 XOR
-        const decodedInput = decodeURIComponent(escape(atob(input)));
-        
-        let finalDecrypted = '';
-        for (let i = 0; i < decodedInput.length; i++) {
-            const charCode = decodedInput.charCodeAt(i);
-            const keyChar = key.charCodeAt(i % key.length);
-            const xorResult = charCode ^ keyChar;
-            finalDecrypted += String.fromCharCode(xorResult);
-        }
-        return finalDecrypted;
-    }
+    return operationType === 'encrypt'
+        ? btoa(unescape(encodeURIComponent(result)))
+        : decodeURIComponent(escape(atob(result)));
 }

@@ -85,14 +85,15 @@ function executeOperation(operationType) {
 
 // --- 5 種操作方法的實現 ---
 
-// 1. ROT13 編碼/解碼（取代原本的 Base64）
+// 1. Base64 編碼/解碼
 function base64Operation(input, operationType) {
-    return input.replace(/[a-zA-Z]/g, function(char) {
-        const base = char <= 'Z' ? 65 : 97; // 大寫或小寫
-        const code = char.charCodeAt(0) - base;
-        const rotated = (code + 13) % 26;
-        return String.fromCharCode(rotated + base);
-    });
+    if (operationType === 'encrypt') {
+        // 編碼：將普通字串轉換為 Base64
+        return btoa(unescape(encodeURIComponent(input))); // 處理中文等 Unicode 字元
+    } else {
+        // 解碼：將 Base64 轉換為普通字串
+        return decodeURIComponent(escape(atob(input)));
+    }
 }
 
 // 2. 凱撒密碼 (只處理英文字母)
@@ -201,4 +202,4 @@ function xorOperation(input, operationType, key) {
         }
         return finalDecrypted;
     }
-}
+}    

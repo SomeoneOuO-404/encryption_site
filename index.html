@@ -2,8 +2,9 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>多功能加密解密工具（RSA 公鑰/私鑰版）</title>
+<title>多功能加密解密工具（ChaCha20 版）</title>
 
+<!-- CryptoJS（含 ChaCha20） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
 <style>
@@ -32,12 +33,6 @@ textarea, input, select {
 }
 textarea { height: 110px; font-family: monospace; }
 #outputText { background: #fff8e1; height: 150px; }
-.keybox {
-    background: #f7f7f7;
-    border-left: 5px solid #007bff;
-    padding: 12px;
-    margin-top: 15px;
-}
 .button-group {
     display: flex;
     gap: 15px;
@@ -53,7 +48,6 @@ button {
 }
 .encrypt { background: #007bff; }
 .decrypt { background: #28a745; }
-.keybtn { background:#6c757d; margin-top:10px; }
 </style>
 </head>
 
@@ -62,24 +56,9 @@ button {
 
 <h1>多功能加密 / 解密工具</h1>
 
-<!-- RSA Key Section -->
-<button class="keybtn" onclick="generateRSAKeyPair()">🔑 產生 RSA 公鑰 / 私鑰</button>
-
-<div class="keybox">
-<label>RSA Public Key（公鑰）</label>
-<textarea id="publicKeyArea" readonly></textarea>
-</div>
-
-<div class="keybox">
-<label>RSA Private Key（私鑰）</label>
-<textarea id="privateKeyArea" readonly></textarea>
-</div>
-
-<hr>
-
 <label>1. 選擇方法</label>
 <select id="methodSelect">
-    <option value="rsa">1. RSA 公鑰加密 / 私鑰解密</option>
+    <option value="chacha">1. ChaCha20 對稱式加密 / 解密</option>
     <option value="caesar">2. 凱撒密碼</option>
     <option value="substitution">3. 單表置換密碼</option>
     <option value="aes">4. AES 對稱加密</option>
@@ -90,11 +69,11 @@ button {
 <textarea id="inputText"></textarea>
 
 <div id="keyField">
-    <label>對稱式密鑰（AES / XOR / Substitution）</label>
+    <label>密鑰（ChaCha20 / AES / XOR / Substitution）</label>
     <input type="text" id="secretKeyInput">
 </div>
 
-<div id="caesarShift">
+<div id="caesarShift" style="display:none;">
     <label>凱撒位移量 (1–25)</label>
     <input type="number" id="shiftValue" value="3" min="1" max="25">
 </div>
@@ -110,53 +89,21 @@ button {
 </div>
 
 <script>
-/* ================== RSA ================== */
-let rsaKeyPair = null;
-
-async function generateRSAKeyPair() {
-    rsaKeyPair = await crypto.subtle.generateKey(
-        {
-            name: "RSA-OAEP",
-            modulusLength: 2048,
-            publicExponent: new Uint8Array([1,0,1]),
-            hash: "SHA-256"
-        },
-        true,
-        ["encrypt","decrypt"]
-    );
-
-    document.getElementById("publicKeyArea").value =
-        await exportKey(rsaKeyPair.publicKey, "public");
-
-    document.getElementById("privateKeyArea").value =
-        await exportKey(rsaKeyPair.privateKey, "private");
-}
-
-async function exportKey(key, type) {
-    const format = type === "public" ? "spki" : "pkcs8";
-    const exported = await crypto.subtle.exportKey(format, key);
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(exported)));
-
-    const header = type === "public"
-        ? "-----BEGIN PUBLIC KEY-----"
-        : "-----BEGIN PRIVATE KEY-----";
-    const footer = type === "public"
-        ? "-----END PUBLIC KEY-----"
-        : "-----END PRIVATE KEY-----";
-
-    return `${header}\n${base64.match(/.{1,64}/g).join("\n")}\n${footer}`;
-}
-
-/* ================== UI ================== */
+// ================== 元素綁定 ==================
 const methodSelect = document.getElementById('methodSelect');
+const inputText = document.getElementById('inputText');
+const outputText = document.getElementById('outputText');
 const keyField = document.getElementById('keyField');
+const secretKeyInput = document.getElementById('secretKeyInput');
 const caesarShift = document.getElementById('caesarShift');
+const shiftValueInput = document.getElementById('shiftValue');
 
+// ================== UI 控制 ==================
 methodSelect.addEventListener('change', () => {
     keyField.style.display = 'none';
     caesarShift.style.display = 'none';
 
-    if (['aes','xor','substitution'].includes(methodSelect.value)) {
+    if (['chacha','aes','xor','substitution'].includes(methodSelect.value)) {
         keyField.style.display = 'block';
     }
     if (methodSelect.value === 'caesar') {
@@ -165,89 +112,113 @@ methodSelect.addEventListener('change', () => {
 });
 methodSelect.dispatchEvent(new Event('change'));
 
-/* ================== 核心 ================== */
-async function executeOperation(type) {
+// ================== 核心執行 ==================
+function executeOperation(type) {
+    const method = methodSelect.value;
     const input = inputText.value;
+    const key = secretKeyInput.value;
+    const shift = parseInt(shiftValueInput.value);
     let result = '';
 
+    if (!input) {
+        alert('請輸入要處理的文字！');
+        return;
+    }
+
     try {
-        switch (methodSelect.value) {
-            case 'rsa':
-                result = await rsaOperation(input, type);
+        switch (method) {
+            case 'chacha':
+                if (!key) throw new Error('請輸入 ChaCha20 密鑰');
+                result = chachaOperation(input, type, key);
                 break;
+
             case 'caesar':
-                result = caesarOperation(input, type, +shiftValue.value);
+                if (isNaN(shift)) throw new Error('凱撒位移量錯誤');
+                result = caesarOperation(input, type, shift);
                 break;
+
             case 'substitution':
-                result = substitutionOperation(input, type, secretKeyInput.value);
+                result = substitutionOperation(input, type, key);
                 break;
+
             case 'aes':
-                result = aesOperation(input, type, secretKeyInput.value);
+                if (!key) throw new Error('請輸入 AES 密鑰');
+                result = aesOperation(input, type, key);
                 break;
+
             case 'xor':
-                result = xorOperation(input, type, secretKeyInput.value);
+                if (!key) throw new Error('請輸入 XOR 密鑰');
+                result = xorOperation(input, type, key);
                 break;
+
+            default:
+                result = '未知方法';
         }
     } catch (e) {
         result = e.message;
     }
+
     outputText.value = result;
 }
 
-/* ================== RSA Encrypt / Decrypt ================== */
-async function rsaOperation(input, type) {
-    if (!rsaKeyPair) throw new Error("請先產生 RSA 金鑰");
+// ================== ChaCha20 ==================
+function chachaOperation(input, type, key) {
+    // 96-bit nonce（教學用途，固定）
+    const nonce = CryptoJS.enc.Hex.parse("000000000000000000000000");
 
     if (type === 'encrypt') {
-        const data = new TextEncoder().encode(input);
-        const encrypted = await crypto.subtle.encrypt(
-            { name:"RSA-OAEP" },
-            rsaKeyPair.publicKey,
-            data
+        const encrypted = CryptoJS.ChaCha20.encrypt(
+            input,
+            CryptoJS.enc.Utf8.parse(key),
+            { iv: nonce }
         );
-        return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+        return encrypted.toString(); // Base64
     } else {
-        const bytes = Uint8Array.from(atob(input), c => c.charCodeAt(0));
-        const decrypted = await crypto.subtle.decrypt(
-            { name:"RSA-OAEP" },
-            rsaKeyPair.privateKey,
-            bytes
+        const decrypted = CryptoJS.ChaCha20.decrypt(
+            input,
+            CryptoJS.enc.Utf8.parse(key),
+            { iv: nonce }
         );
-        return new TextDecoder().decode(decrypted);
+        const text = decrypted.toString(CryptoJS.enc.Utf8);
+        if (!text) throw new Error('ChaCha20 解密失敗（密鑰錯誤或密文損毀）');
+        return text;
     }
 }
 
-/* ================== Other Algorithms ================== */
+// ================== 其他演算法 ==================
 function caesarOperation(text, type, shift) {
     if (type === 'decrypt') shift = -shift;
     return text.toUpperCase().replace(/[A-Z]/g, c =>
-        String.fromCharCode((c.charCodeAt(0)-65+shift+26)%26+65)
+        String.fromCharCode((c.charCodeAt(0) - 65 + shift + 26) % 26 + 65)
     );
 }
 
 function substitutionOperation(text, type, key) {
-    const A='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    key=key.toUpperCase();
-    if(key.length!==26) throw new Error("密鑰需 26 字母");
-    return text.toUpperCase().replace(/[A-Z]/g,c=>{
-        const i=type==='encrypt'?A.indexOf(c):key.indexOf(c);
-        return type==='encrypt'?key[i]:A[i];
+    const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    key = key.toUpperCase();
+    if (key.length !== 26) throw new Error('密鑰需 26 個字母');
+    return text.toUpperCase().replace(/[A-Z]/g, c => {
+        const i = type === 'encrypt' ? A.indexOf(c) : key.indexOf(c);
+        return type === 'encrypt' ? key[i] : A[i];
     });
 }
 
 function aesOperation(text, type, key) {
-    if(!key) throw new Error("請輸入 AES 密鑰");
-    return type==='encrypt'
-        ? CryptoJS.AES.encrypt(text,key).toString()
-        : CryptoJS.AES.decrypt(text,key).toString(CryptoJS.enc.Utf8);
+    return type === 'encrypt'
+        ? CryptoJS.AES.encrypt(text, key).toString()
+        : CryptoJS.AES.decrypt(text, key).toString(CryptoJS.enc.Utf8);
 }
 
 function xorOperation(text, type, key) {
-    let r='';
-    for(let i=0;i<text.length;i++){
-        r+=String.fromCharCode(text.charCodeAt(i)^key.charCodeAt(i%key.length));
+    let r = '';
+    for (let i = 0; i < text.length; i++) {
+        r += String.fromCharCode(
+            text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+        );
     }
-    return type==='encrypt'?btoa(r):xorOperation(atob(text),'encrypt',key);
+    return type === 'encrypt'
+        ? btoa(r)
+        : xorOperation(atob(text), 'encrypt', key);
 }
 </script>
 </body>

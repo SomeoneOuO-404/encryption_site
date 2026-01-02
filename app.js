@@ -7,24 +7,6 @@ const secretKeyInput = document.getElementById('secretKey');
 const caesarShift = document.getElementById('caesarShift');
 const shiftValueInput = document.getElementById('shiftValue');
 
-// ================== RSA 金鑰 ==================
-let rsaKeyPair = null;
-
-// 產生 RSA 金鑰（頁面載入一次）
-async function generateRSAKeyPair() {
-    rsaKeyPair = await crypto.subtle.generateKey(
-        {
-            name: "RSA-OAEP",
-            modulusLength: 2048,
-            publicExponent: new Uint8Array([1, 0, 1]),
-            hash: "SHA-256"
-        },
-        true,
-        ["encrypt", "decrypt"]
-    );
-}
-generateRSAKeyPair();
-
 // ================== UI 控制 ==================
 methodSelect.addEventListener('change', function () {
     const method = this.value;
@@ -32,7 +14,7 @@ methodSelect.addEventListener('change', function () {
     keyField.style.display = 'none';
     caesarShift.style.display = 'none';
 
-    if (method === 'aes' || method === 'xor' || method === 'substitution') {
+    if (method === 'aes' || method === 'xor' || method === 'substitution' || method === 'chacha') {
         keyField.style.display = 'block';
     } else if (method === 'caesar') {
         caesarShift.style.display = 'block';
@@ -56,8 +38,12 @@ async function executeOperation(operationType) {
 
     try {
         switch (method) {
-            case 'rsa':
-                result = await rsaOperation(input, operationType);
+            case 'chacha':
+                if (!key) {
+                    alert('請輸入 ChaCha20 密鑰！');
+                    return;
+                }
+                result = chachaOperation(input, operationType, key);
                 break;
 
             case 'caesar':
@@ -99,42 +85,31 @@ async function executeOperation(operationType) {
     outputText.value = result;
 }
 
-// ================== RSA 加解密 ==================
-async function rsaOperation(input, operationType) {
-    if (!rsaKeyPair) {
-        throw new Error('RSA 金鑰尚未就緒');
-    }
+// ================== ChaCha20 ==================
+function chachaOperation(input, operationType, key) {
+    // 96-bit nonce（教學用，實務請隨機）
+    const nonce = CryptoJS.enc.Hex.parse("000000000000000000000000");
 
     if (operationType === 'encrypt') {
-        const encoded = new TextEncoder().encode(input);
-
-        const encrypted = await crypto.subtle.encrypt(
-            { name: "RSA-OAEP" },
-            rsaKeyPair.publicKey,
-            encoded
+        const encrypted = CryptoJS.ChaCha20.encrypt(
+            input,
+            CryptoJS.enc.Utf8.parse(key),
+            { iv: nonce }
         );
-
-        // ArrayBuffer → Base64（僅作顯示用途）
-        return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+        return encrypted.toString(); // Base64
     } else {
-        const encryptedBytes = Uint8Array.from(
-            atob(input),
-            c => c.charCodeAt(0)
+        const decrypted = CryptoJS.ChaCha20.decrypt(
+            input,
+            CryptoJS.enc.Utf8.parse(key),
+            { iv: nonce }
         );
-
-        const decrypted = await crypto.subtle.decrypt(
-            { name: "RSA-OAEP" },
-            rsaKeyPair.privateKey,
-            encryptedBytes
-        );
-
-        return new TextDecoder().decode(decrypted);
+        const text = decrypted.toString(CryptoJS.enc.Utf8);
+        if (!text) throw new Error('ChaCha20 解密失敗（密鑰錯誤或密文損毀）');
+        return text;
     }
 }
 
-// ================== 其他原有功能（未動） ==================
-
-// 凱撒密碼
+// ================== 凱撒密碼 ==================
 function caesarOperation(input, operationType, shift) {
     const s = operationType === 'encrypt' ? shift : -shift;
     return input.toUpperCase().replace(/[A-Z]/g, c =>
@@ -142,7 +117,7 @@ function caesarOperation(input, operationType, shift) {
     );
 }
 
-// 單表置換
+// ================== 單表置換 ==================
 function substitutionOperation(input, operationType, key) {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const subKey = key.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 26);
@@ -164,7 +139,7 @@ function substitutionOperation(input, operationType, key) {
     }).join('');
 }
 
-// AES
+// ================== AES ==================
 function aesOperation(input, operationType, key) {
     if (operationType === 'encrypt') {
         return CryptoJS.AES.encrypt(input, key).toString();
@@ -176,7 +151,7 @@ function aesOperation(input, operationType, key) {
     }
 }
 
-// XOR
+// ================== XOR ==================
 function xorOperation(input, operationType, key) {
     let result = '';
     for (let i = 0; i < input.length; i++) {

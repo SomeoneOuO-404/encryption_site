@@ -52,7 +52,8 @@ def crypto(req: CryptoRequest):
         return {"result": caesar(req.text, shift)}
 
     if req.method == "substitution":
-        return {"result": substitution(req.text)}
+        return {"result": substitution(req.text, req.action)}
+
 
     if req.method == "aes":
         if not req.key:

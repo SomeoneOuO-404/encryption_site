@@ -4,6 +4,13 @@ import hashlib
 from cryptography.fernet import Fernet
 from vars import SUBSTITUTION_TABLE
 
+# 正向：A -> I
+# 反向：I -> A
+REVERSE_SUBSTITUTION_TABLE = {
+    SUBSTITUTION_TABLE[i]: string.ascii_uppercase[i]
+    for i in range(26)
+}
+
 
 # =========================
 # 1. Atbash Cipher

@@ -85,16 +85,25 @@ function executeOperation(operationType) {
 
 // --- 5 種操作方法的實現 ---
 
-// 1. ROT13 編碼/解碼（取代原本的 Base64）
-function base64Operation(input, operationType) {
-    return input.replace(/[a-zA-Z]/g, function(char) {
-        const base = char <= 'Z' ? 65 : 97; // 大寫或小寫
-        const code = char.charCodeAt(0) - base;
-        const rotated = (code + 13) % 26;
-        return String.fromCharCode(rotated + base);
+// HTML 修改： <option value="atbash">埃特巴什碼 (Atbash)</option>
+
+// 1. 埃特巴什碼函數
+function atbashOperation(input) {
+    // 只需要處理英文字母，其他保留
+    return input.replace(/[a-zA-Z]/g, (char) => {
+        const code = char.charCodeAt(0);
+        // 判斷是大寫還是小寫
+        const isUpper = code >= 65 && code <= 90;
+        
+        // 核心邏輯：(Z的編碼) - (當前字元 - A的編碼)
+        // 簡單說就是：用 25 減去目前的索引位置 (0-25)
+        if (isUpper) {
+            return String.fromCharCode(90 - (code - 65));
+        } else {
+            return String.fromCharCode(122 - (code - 97));
+        }
     });
 }
-
 
 // 2. 凱撒密碼 (只處理英文字母)
 function caesarOperation(input, operationType, shift) {

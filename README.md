@@ -1,13 +1,16 @@
-# FastAPI 五種加解密系統
+# Encryption Site
 
-## 功能
-- Atbash Cipher
-- Caesar Cipher
-- Substitution Cipher（英文大寫）
-- AES 對稱加解密
-- XOR Cipher
+A FastAPI-based web application that provides five encryption and decryption methods.
 
-## 執行方式
+## Features
+1. Atbash Cipher
+2. Caesar Cipher
+3. Substitution Cipher (Uppercase English Only)
+4. AES Symmetric Encryption
+5. XOR Cipher
+
+## How to Run
+
 ```bash
 pip install -r requirements.txt
 uvicorn main:app --reload

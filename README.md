@@ -66,9 +66,9 @@ POST /crypto
 ___
 # 三、請求參數說明（JSON）
 
-method	加密方法（atbash / caesar / substitution / aes / xor）
+method:	加密方法（atbash / caesar / substitution / aes / xor）
 
-action	encrypt 或 decrypt
+action:	encrypt(加密) 或 decrypt(解密)
 
 text	欲處理的文字
 

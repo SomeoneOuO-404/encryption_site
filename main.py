@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 import uvicorn
+from pathlib import Path
+import markdown
 from modifiers import (
     atbash,
     caesar,
@@ -38,7 +40,40 @@ class CryptoRequest(BaseModel):
         description="位移量（僅 Caesar Cipher 使用）",
         example=3
     )
-
+def load_index_html() -> str:
+    # 讀取 Markdown 文件
+    md_file = Path("assets/index.md")
+    md_content = md_file.read_text(encoding="utf-8")
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en-US">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hearts Echo</title>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                line-height: 1.6;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                color: #333;
+            }}
+            h1 {{ color: #2c3e50; }}
+            h2 {{ color: #34495e; margin-top: 30px; }}
+            code {{
+                background-color: #f4f4f4;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }}
+        </style>
+    </head>
+    <body>
+        {markdown.markdown(md_content, extensions=['extra', 'codehilite'])}
+    </body>
+    </html>
+    """
 
 @app.post("/crypto")
 def crypto(req: CryptoRequest):

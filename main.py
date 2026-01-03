@@ -133,7 +133,10 @@ def load_index_html() -> str:
         </style>
     </head>
     <body>
-        {markdown.markdown(md_content, extensions=["extra", "codehilite"])}
+    {markdown.markdown(
+        md_content,
+        extensions=["extra", "fenced_code", "codehilite"]
+    )}
     </body>
     </html>
     """

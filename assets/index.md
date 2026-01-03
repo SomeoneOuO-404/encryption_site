@@ -2,14 +2,6 @@
 
 將文字透過不同的加密演算法，轉換成安全或可讀的形式。
 
-
----
-# 小組成員
-B11200037 陳明聰
-
-B11200033 江智瑞
-
-B11217036 李冠億
 ___
 # 這是什麼？
 
@@ -64,17 +56,16 @@ ___
 
 POST /crypto
 ___
-# 三、請求參數說明（JSON）
+## 三、請求參數說明（JSON）
 
-method:	加密方法（atbash / caesar / substitution / aes / xor）
+| 欄位名稱 | 說明 |
+|---------|------|
+| method | 加密方法（atbash / caesar / substitution / aes / xor） |
+| action | encrypt（加密）或 decrypt（解密） |
+| text | 欲處理的文字 |
+| shift | 凱薩加密位移量（僅 Caesar 使用） |
+| key | 密鑰（AES、XOR 必填） |
 
-action:	encrypt(加密) 或 decrypt(解密)
-
-text	欲處理的文字
-
-shift	凱薩加密位移量（僅 Caesar 使用）
-
-key	密鑰（AES、XOR 必填）
 ___
 # 四、操作範例
 範例 1：Caesar 加密

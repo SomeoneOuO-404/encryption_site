@@ -1,7 +1,7 @@
 > 👉 實際功能測試請前往：  
 > **[Swagger API 文件（/docs）](/docs)**
 
-# Encryption Site
+# Encryption Site  
 
 將文字透過不同的加密演算法，轉換成安全或可讀的形式。
 

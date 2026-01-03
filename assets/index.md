@@ -68,14 +68,14 @@ ___
 
 ___
 # 四、操作範例
-範例 1：Caesar 加密
-{
-  "method": "caesar",
-  "action": "encrypt",
-  "text": "HELLO",
-  "shift": 3
-}
-回傳結果：
-{
-  "result": "KHOOR"
-}
+    範例 1：Caesar 加密
+    {
+        "method": "caesar",
+        "action": "encrypt",
+        "text": "HELLO",
+        "shift": 3
+    }
+    回傳結果：
+    {
+        "result": "KHOOR"
+    }

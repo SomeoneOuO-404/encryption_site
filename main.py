@@ -68,22 +68,67 @@ def load_index_html() -> str:
                              Roboto, "Noto Sans TC", Arial, sans-serif;
                 max-width: 900px;
                 margin: 40px auto;
-                line-height: 1.7;
+                line-height: 1.8;
                 color: #222;
             }}
+
             h1, h2, h3 {{
                 color: #2c3e50;
+                margin-top: 1.5em;
             }}
+
+            hr {{
+                border: none;
+                border-top: 1px solid #ddd;
+                margin: 2em 0;
+            }}
+
+            blockquote {{
+                background: #eef6ff;
+                border-left: 4px solid #3b82f6;
+                margin: 1.5em 0;
+                padding: 0.8em 1em;
+                color: #333;
+            }}
+
             code {{
                 background: #f4f4f4;
                 padding: 2px 6px;
                 border-radius: 4px;
+                font-size: 0.95em;
             }}
+
             pre {{
                 background: #f4f4f4;
-                padding: 12px;
+                padding: 14px;
                 border-radius: 6px;
                 overflow-x: auto;
+                line-height: 1.5;
+            }}
+
+            pre code {{
+                background: none;
+                padding: 0;
+            }}
+
+            ul, ol {{
+                margin-left: 1.5em;
+            }}
+
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin: 1.5em 0;
+            }}
+
+            th, td {{
+                border: 1px solid #ccc;
+                padding: 8px 12px;
+                text-align: left;
+            }}
+
+            th {{
+                background: #f0f0f0;
             }}
         </style>
     </head>
@@ -92,6 +137,7 @@ def load_index_html() -> str:
     </body>
     </html>
     """
+
 
 # ============================================================
 # Routes

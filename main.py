@@ -56,9 +56,11 @@ def crypto(req: CryptoRequest):
         shift = req.shift if action == "encrypt" else -req.shift
         return {"result": caesar(req.text, shift)}
 
-    # 3. Substitution（僅加密，不用 action）
+    # 3. Substitution
     if method == "substitution":
-        return {"result": substitution(req.text)}
+        if action not in ("encrypt", "decrypt"):
+            return {"error": "Substitution 需要 encrypt 或 decrypt"}
+        return {"result": substitution(req.text, action)}
 
     # 4. AES
     if method == "aes":

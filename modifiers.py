@@ -36,21 +36,35 @@ def caesar(text: str, shift: int) -> str:
 
 
 # =========================
-# 3. Substitution Cipher（僅加密）
+# 3. Substitution Cipher（加密 + 解密）
 # =========================
-def substitution(text: str) -> str:
+# 建立反向替換表（解密用）
+REVERSE_SUBSTITUTION_TABLE = [""] * 26
+for i, c in enumerate(SUBSTITUTION_TABLE):
+    REVERSE_SUBSTITUTION_TABLE[ord(c) - ord('A')] = chr(i + ord('A'))
+
+
+def substitution(text: str, action: str = "encrypt") -> str:
     """
     單表替換（Substitution Cipher）：
-    - 本專案採用固定替換表 SUBSTITUTION_TABLE
-    - 不提供反向解密（decrypt）
+    - 採用固定替換表 SUBSTITUTION_TABLE
+    - decrypt 透過反向替換表實作
     - 僅支援英文大寫 A-Z
     """
     result = ""
+
+    table = (
+        SUBSTITUTION_TABLE
+        if action == "encrypt"
+        else REVERSE_SUBSTITUTION_TABLE
+    )
+
     for c in text:
         if c in string.ascii_uppercase:
-            result += SUBSTITUTION_TABLE[ord(c) - ord('A')]
+            result += table[ord(c) - ord('A')]
         else:
             result += c
+
     return result
 
 
@@ -58,9 +72,6 @@ def substitution(text: str) -> str:
 # 4. AES (Fernet)
 # =========================
 def _derive_key(key: str) -> bytes:
-    """
-    將使用者輸入的 key 轉成 Fernet 合法金鑰
-    """
     digest = hashlib.sha256(key.encode()).digest()
     return base64.urlsafe_b64encode(digest)
 

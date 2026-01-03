@@ -47,9 +47,13 @@ ___
 # 三、請求參數說明（JSON）
 欄位名稱	說明
 method	加密方法（atbash / caesar / substitution / aes / xor）
+
 action	encrypt 或 decrypt
+
 text	欲處理的文字
+
 shift	凱薩加密位移量（僅 Caesar 使用）
+
 key	密鑰（AES、XOR 必填）
 ___
 # 四、操作範例

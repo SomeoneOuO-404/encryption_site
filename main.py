@@ -256,4 +256,3 @@ def home():
     </body>
     </html>
     """
-# ci test trigger

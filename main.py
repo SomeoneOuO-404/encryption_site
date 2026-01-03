@@ -21,7 +21,7 @@ class CryptoRequest(BaseModel):
         example="caesar"
     )
     action: str = Field(
-        description="操作模式：encrypt（加密）或 decrypt（解密）",
+        description="操作模式：encrypt（加）或 decrypt（解密）",
         example="encrypt"
     )
     text: str = Field(

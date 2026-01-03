@@ -4,7 +4,7 @@ import hashlib
 from cryptography.fernet import Fernet
 from vars import SUBSTITUTION_TABLE
 
-
+   
 # =========================
 # 1. Atbash Cipher
 # =========================
